@@ -52,6 +52,16 @@ and the consumer.
   `count >= 2` across sibling batches (`session.ts:748`). A session with a single
   batch can never clear that bar, so its Summary root keeps `#session-summary`
   alone.
+- OPEN, for Benni to decide before the planner pass: the retired structural tags
+  are P0063's own subject matter. `#checkpoint`, `#session`, `#sessions` and
+  `#exchange` are exactly what the summarizer would put on a batch summary about
+  checkpoint reaping or session continuity — and every write path strips them
+  (`store.ts:2261`, `server.ts:1736`), silently. So this project's tag vocabulary
+  will be missing four of the words the project is most about. Verified by
+  reading the write path, not by observing a stripped summary. The options are:
+  live with it (the topic is still reachable via `#session-continuity`,
+  `#summarizer` and friends), or un-retire the words as content tags and
+  distinguish structure by metadata instead. Not decided here.
 - The share of tags used exactly once is UNKNOWN: `stats()` returns only the top
   20 and no tag-listing API exists. The project-scoped query built for criterion 1
   answers it as a side effect — report the number once, it decides nothing but it
@@ -90,9 +100,13 @@ and the consumer.
    `recentExchanges` in `session-briefing.ts:130-155`, merged with `17c6699`.
 8. The **automatic** session start stops asking for past work. AMENDED
    2026-08-11: gate, do not delete. `collectDirectiveBriefing` takes an
-   `includePastWork` flag; the session-start caller (`checkpoint.ts:325`) passes
-   `false`, so a fresh session sees the project header, `── Open work ──` and the
-   ACTION line and nothing else. The collectors (`previousSession`,
+   `includePastWork` flag. It has exactly three callers, verified: the two
+   automatic ones in `tim-cli` — the marker directive (`cli.ts:485`) and the
+   session directive (`cli.ts:571`), both of which a start hook shells out to —
+   pass `false`, so a fresh session sees the project header, `── Open work ──`
+   and the ACTION line and nothing else. The third, `previewSessionStart`
+   (`checkpoint.ts:325`, reached only from `tim_preview_briefing`), passes
+   `true`. The collectors (`previousSession`,
    `recentExchanges`, `latestCheckpoint`) and both render blocks in
    `briefingBlock` (`marker.ts:503-528`) **stay** — they are the machinery
    `tim_preview_briefing` and criterion 12 call deliberately. Deleting them here
