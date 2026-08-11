@@ -6,21 +6,42 @@
 // spare a tag. The structural half is the actual point of the migration, and it is
 // stripped only here: those words stay legal as content tags afterwards.
 //
-// ONE-TIME, and order matters: run it before anyone tags an entry #checkpoint on purpose,
-// because the sweep cannot tell that tag from the ones the old write sites left behind.
-// Idempotent: re-running on a clean DB is a no-op.
+// The structural half is scoped to session-tree nodes by metadata.kind, and that scoping is
+// load-bearing rather than cosmetic: a dry run against the live database found 3303 rows to
+// clean, among them entries whose #checkpoint is plainly subject matter (an hmem-era note on
+// memory checkpoints, tagged #hmem #haiku #checkpoint #mcp #claude-cli). An unscoped sweep
+// would have deleted those. Idempotent: re-running on a clean DB is a no-op.
 
 import { isDeprecatedTag, RETIRED_STRUCTURAL_TAGS } from 'tim-core';
 import type { TimStore } from 'tim-store';
 
-// The write path only strips DEPRECATED_TAGS. The retired structural tags are cleaned
-// here and nowhere else: this is a one-time sweep over what the old write sites left
-// behind, not a standing ban on the words — see RETIRED_STRUCTURAL_TAGS.
-function stripRetiredTags(tags: string[]): { clean: string[]; removed: string[] } {
+// The write path only strips DEPRECATED_TAGS. The retired structural tags are cleaned here
+// and nowhere else — a one-time sweep over what the old write sites left behind, not a
+// standing ban on the words (see RETIRED_STRUCTURAL_TAGS).
+//
+// The kinds the session tree writes. Only these ever got stamped with the structural tags,
+// and only on these is a structural tag certainly plumbing rather than subject matter.
+const SESSION_TREE_KINDS = new Set([
+  'sessions-root',
+  'session',
+  'session-alias',
+  'session-summary-root',
+  'batch-summary',
+  'exchanges-root',
+  'exchange-batch',
+  'exchange',
+  'checkpoint',
+]);
+
+function stripRetiredTags(
+  tags: string[],
+  isSessionTreeNode: boolean,
+): { clean: string[]; removed: string[] } {
   const clean: string[] = [];
   const removed: string[] = [];
   for (const tag of tags) {
-    if (isDeprecatedTag(tag) || RETIRED_STRUCTURAL_TAGS.has(tag.toLowerCase())) {
+    const structural = isSessionTreeNode && RETIRED_STRUCTURAL_TAGS.has(tag.toLowerCase());
+    if (isDeprecatedTag(tag) || structural) {
       removed.push(tag);
     } else {
       clean.push(tag);
@@ -59,11 +80,11 @@ export async function migrateRetireDeprecatedTags(
   const db = store.getDb();
 
   const rows = db.prepare(`
-    SELECT id, title, tags
+    SELECT id, title, tags, metadata
     FROM entries
     WHERE irrelevant = 0
       AND tombstoned_at IS NULL
-  `).all() as Array<{ id: string; title: string; tags: string }>;
+  `).all() as Array<{ id: string; title: string; tags: string; metadata: string }>;
 
   const report: RetireDeprecatedTagsReport = {
     scanned: rows.length,
@@ -82,7 +103,15 @@ export async function migrateRetireDeprecatedTags(
       oldTags = [];
     }
 
-    const { clean, removed } = stripRetiredTags(oldTags);
+    let kind: unknown;
+    try {
+      kind = (JSON.parse(row.metadata) as { kind?: unknown })?.kind;
+    } catch {
+      kind = undefined;
+    }
+    const isSessionTreeNode = typeof kind === 'string' && SESSION_TREE_KINDS.has(kind);
+
+    const { clean, removed } = stripRetiredTags(oldTags, isSessionTreeNode);
     if (removed.length === 0) {
       report.skipped++;
       continue;
