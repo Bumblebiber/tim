@@ -1,11 +1,33 @@
-// Strip every DEPRECATED_TAG from existing rows — the retired structural tags
-// (#exchange, #session, #sessions, #exchanges, #checkpoint) plus the older status and
-// priority tags. The scope is the full set on purpose: store.update() strips all of them
-// on write anyway, so a narrower selector would only skip rows, never spare a tag.
+// Clean legacy tags off existing rows: the deprecated status and priority tags, plus the
+// retired structural ones (#exchange, #session, #sessions, #exchanges, #checkpoint).
+//
+// The deprecated half is swept along on purpose rather than filtered out — store.update()
+// strips those on every write anyway, so a narrower selector would only skip rows, never
+// spare a tag. The structural half is the actual point of the migration, and it is
+// stripped only here: those words stay legal as content tags afterwards.
+//
+// ONE-TIME, and order matters: run it before anyone tags an entry #checkpoint on purpose,
+// because the sweep cannot tell that tag from the ones the old write sites left behind.
 // Idempotent: re-running on a clean DB is a no-op.
 
-import { stripDeprecatedTags } from 'tim-core';
+import { isDeprecatedTag, RETIRED_STRUCTURAL_TAGS } from 'tim-core';
 import type { TimStore } from 'tim-store';
+
+// The write path only strips DEPRECATED_TAGS. The retired structural tags are cleaned
+// here and nowhere else: this is a one-time sweep over what the old write sites left
+// behind, not a standing ban on the words — see RETIRED_STRUCTURAL_TAGS.
+function stripRetiredTags(tags: string[]): { clean: string[]; removed: string[] } {
+  const clean: string[] = [];
+  const removed: string[] = [];
+  for (const tag of tags) {
+    if (isDeprecatedTag(tag) || RETIRED_STRUCTURAL_TAGS.has(tag.toLowerCase())) {
+      removed.push(tag);
+    } else {
+      clean.push(tag);
+    }
+  }
+  return { clean, removed };
+}
 
 export interface RetireDeprecatedTagsEntryResult {
   id: string;
@@ -60,7 +82,7 @@ export async function migrateRetireDeprecatedTags(
       oldTags = [];
     }
 
-    const { clean, removed } = stripDeprecatedTags(oldTags);
+    const { clean, removed } = stripRetiredTags(oldTags);
     if (removed.length === 0) {
       report.skipped++;
       continue;

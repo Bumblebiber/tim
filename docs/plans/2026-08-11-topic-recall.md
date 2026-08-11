@@ -52,16 +52,14 @@ and the consumer.
   `count >= 2` across sibling batches (`session.ts:748`). A session with a single
   batch can never clear that bar, so its Summary root keeps `#session-summary`
   alone.
-- OPEN, for Benni to decide before the planner pass: the retired structural tags
-  are P0063's own subject matter. `#checkpoint`, `#session`, `#sessions` and
-  `#exchange` are exactly what the summarizer would put on a batch summary about
-  checkpoint reaping or session continuity — and every write path strips them
-  (`store.ts:2261`, `server.ts:1736`), silently. So this project's tag vocabulary
-  will be missing four of the words the project is most about. Verified by
-  reading the write path, not by observing a stripped summary. The options are:
-  live with it (the topic is still reachable via `#session-continuity`,
-  `#summarizer` and friends), or un-retire the words as content tags and
-  distinguish structure by metadata instead. Not decided here.
+- RESOLVED 2026-08-11: the retired structural tags are P0063's own subject
+  matter — `#checkpoint`, `#session`, `#sessions`, `#exchange` are exactly what
+  the summarizer would put on a summary about checkpoint reaping or session
+  continuity. They are no longer written automatically, but they were briefly
+  also banned as content tags, which would have left this project's vocabulary
+  missing four of the words it is most about. The ban is lifted: only the write
+  sites are gone, the words stay legal (`RETIRED_STRUCTURAL_TAGS`, see
+  `2026-08-11-handoff-note-home.md` criterion 9).
 - The share of tags used exactly once is UNKNOWN: `stats()` returns only the top
   20 and no tag-listing API exists. The project-scoped query built for criterion 1
   answers it as a side effect — report the number once, it decides nothing but it
@@ -70,8 +68,9 @@ and the consumer.
 ## Acceptance criteria
 
 1. The summarizer prompt carries the project's **complete** content-tag
-   vocabulary — every distinct tag of the project except the structural ones —
-   sorted by frequency descending, with the instruction to reuse a fitting
+   vocabulary — every distinct tag of the project except `#session-summary` and
+   `#batch-summary`, the two that are still stamped automatically — sorted by
+   frequency descending, with the instruction to reuse a fitting
    existing tag before inventing a new one. DECIDED 2026-08-11: no top-N cap. A
    rare tag that the summarizer never sees gets rarer; the point of the list is
    to stop that spiral.

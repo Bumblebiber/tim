@@ -155,14 +155,25 @@ describe('handoff note home (acceptance criteria)', () => {
     expect(cp.tags).toContain('#batch-summary');
   });
 
-  it('criterion 9: stripDeprecatedTags removes retired tags from explicit writes', () => {
+  it('criterion 9: the retired structural tags stay usable as content tags', () => {
+    // Nothing emits them automatically any more, but the words are subject matter in
+    // this project — a summary about checkpoint reaping must be able to say #checkpoint.
     const { clean, removed } = stripDeprecatedTags([
       '#session-summary',
       '#exchange',
       '#commit',
       '#checkpoint',
+      '#todo',
     ]);
-    expect(clean).toEqual(['#session-summary', '#commit']);
-    expect(removed).toEqual(['#exchange', '#checkpoint']);
+    expect(clean).toEqual(['#session-summary', '#exchange', '#commit', '#checkpoint']);
+    expect(removed).toEqual(['#todo']);
+  });
+
+  it('criterion 9: an explicitly tagged entry keeps a retired structural tag', async () => {
+    const entry = await store.write('Checkpoint reaping notes\nbody', {
+      tags: ['#checkpoint', '#session'],
+    });
+    const read = await store.read(entry.id);
+    expect(read!.tags).toEqual(['#checkpoint', '#session']);
   });
 });

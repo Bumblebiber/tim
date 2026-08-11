@@ -48,21 +48,30 @@ the previous session.
    `handoff_note` values are **not** migrated — DECIDED 2026-08-11: the old notes
    are data waste. A `~/.tim/tim.db.bak-pre-checkpoint-reap` backup is taken
    before the first destructive run.
-9. `#exchange`, `#session`, `#exchanges` and `#checkpoint` are added to
-   `DEPRECATED_TAGS` (`tim-core/src/types.ts:127`) and removed from the write
-   sites that emit them (`session.ts:341`, `:425`, `:435`, `:879`, and the
-   session/exchanges-root writers). `stripDeprecatedTags` then keeps them out on
-   every subsequent write.
+9. `#exchange`, `#session`, `#sessions`, `#exchanges` and `#checkpoint` are
+   removed from the write sites that emit them (`session.ts:341`, `:425`,
+   `:435`, `:879`, and the session/exchanges-root writers), so nothing stamps
+   them automatically any more. AMENDED 2026-08-11: they are **not** added to
+   `DEPRECATED_TAGS`. Banning the words would have cost this project four of the
+   terms it is most about — a summary of the work on checkpoint reaping must be
+   able to carry `#checkpoint`, and the follow-up spec's whole value is
+   tag-driven recall over exactly that vocabulary. The structural meaning lives
+   in `metadata.kind` and never needed a tag. They live in
+   `RETIRED_STRUCTURAL_TAGS`, which drives criterion 11's cleanup and nothing
+   else; `stripDeprecatedTags` does not touch them.
 10. `#session-summary`, `#batch-summary` and `#commit` are **kept**.
     `summarize.ts:64/73`, `project-output.ts:549/556` and `server.ts:1534` read
     the first two; `#commit` becomes useful the moment tag-only retrieval lands
     in the follow-up spec.
-11. Existing rows carrying the four retired tags are cleaned through the
-    migration mechanism (explicit opt-in gate, `c56696d`) — not by ad-hoc SQL,
-    which would bypass staging and LWW and would be undone by the next write
-    anyway. This touches thousands of rows (`#exchange` alone is on 2262): take
+11. Existing rows carrying the retired tags are cleaned through the migration
+    mechanism (explicit opt-in gate, `c56696d`) — `tim migrate
+    retire-deprecated-tags` — not by ad-hoc SQL, which would bypass staging and
+    LWW and would be undone by the next write anyway. This touches thousands of
+    rows (`#exchange` alone is on 2262): take
     `~/.tim/tim.db.bak-pre-tag-retirement` before the run, same discipline as
-    criterion 8.
+    criterion 8. The sweep is **one-time and order-dependent**: it cannot tell a
+    deliberate `#checkpoint` from one the old write sites left behind, so it runs
+    before anyone tags an entry with those words on purpose.
 
 ## Scope
 
