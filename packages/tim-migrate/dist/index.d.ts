@@ -6,4 +6,6 @@ export { detectHmemFormat, inspectHmemFile, inspectHmemManifest, createV2HmemDat
 export type { HmemFormat, HmemFormatInfo, HmemManifest, HmemManifestLabel } from './hmem-format.js';
 export { migrateTagsToTypes } from './tags-to-types.js';
 export type { MigrationReport as TagsToTypesReport, MigrationEntryResult } from './tags-to-types.js';
+export { migrateRetireStructuralTags } from './retire-structural-tags.js';
+export type { RetireStructuralTagsReport, RetireStructuralTagsEntryResult, } from './retire-structural-tags.js';
 //# sourceMappingURL=index.d.ts.map

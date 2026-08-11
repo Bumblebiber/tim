@@ -2,7 +2,7 @@
 // packages/tim-core/src/types.ts
 // Built-in 14 metadata types for TIM Schema v3 (Tags → Metadata refactor)
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEPRECATED_TAGS = exports.DEPRECATED_PRIORITY_TAGS = exports.DEPRECATED_STATUS_TAGS = exports.ALL_METADATA_TYPES = exports.METADATA_TYPES = exports.BUILTIN_TYPES = exports.LEGACY_METADATA_TYPES = exports.BUILTIN_METADATA_TYPES = void 0;
+exports.DEPRECATED_TAGS = exports.DEPRECATED_STRUCTURAL_TAGS = exports.DEPRECATED_PRIORITY_TAGS = exports.DEPRECATED_STATUS_TAGS = exports.ALL_METADATA_TYPES = exports.METADATA_TYPES = exports.BUILTIN_TYPES = exports.LEGACY_METADATA_TYPES = exports.BUILTIN_METADATA_TYPES = void 0;
 exports.isBuiltinMetadataType = isBuiltinMetadataType;
 exports.isBuiltinType = isBuiltinType;
 exports.isMetadataType = isMetadataType;
@@ -62,9 +62,16 @@ exports.DEPRECATED_PRIORITY_TAGS = new Set([
     '#priority-critical', '#priority-high', '#priority-medium', '#priority-low',
     'priority-critical', 'priority-high', 'priority-medium', 'priority-low',
 ]);
+exports.DEPRECATED_STRUCTURAL_TAGS = new Set([
+    '#exchange', 'exchange',
+    '#session', 'session',
+    '#exchanges', 'exchanges',
+    '#checkpoint', 'checkpoint',
+]);
 exports.DEPRECATED_TAGS = new Set([
     ...exports.DEPRECATED_STATUS_TAGS,
     ...exports.DEPRECATED_PRIORITY_TAGS,
+    ...exports.DEPRECATED_STRUCTURAL_TAGS,
 ]);
 function isDeprecatedTag(tag) {
     return exports.DEPRECATED_TAGS.has(tag.toLowerCase());

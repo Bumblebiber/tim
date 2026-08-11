@@ -124,9 +124,16 @@ export const DEPRECATED_PRIORITY_TAGS = new Set([
   '#priority-critical', '#priority-high', '#priority-medium', '#priority-low',
   'priority-critical', 'priority-high', 'priority-medium', 'priority-low',
 ]);
+export const DEPRECATED_STRUCTURAL_TAGS = new Set([
+  '#exchange', 'exchange',
+  '#session', 'session',
+  '#exchanges', 'exchanges',
+  '#checkpoint', 'checkpoint',
+]);
 export const DEPRECATED_TAGS = new Set([
   ...DEPRECATED_STATUS_TAGS,
   ...DEPRECATED_PRIORITY_TAGS,
+  ...DEPRECATED_STRUCTURAL_TAGS,
 ]);
 
 export function isDeprecatedTag(tag: string): boolean {

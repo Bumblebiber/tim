@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // TIM CLI — v0.1.0-alpha
 
-import { TimStore, SessionManager, ErrorLogger, resolveProjectBindingLabel, getCurrentVersion, isSchemaMigrationPendingError } from 'tim-store';
+import { TimStore, SessionManager, ErrorLogger, resolveProjectBindingLabel, getCurrentVersion, isSchemaMigrationPendingError, reapSessionSkeletons } from 'tim-store';
 import { loadConfig, getTimDir, normalizeLegacyTypeTag, type TimConfigFile } from 'tim-core';
 import {
   runCheckpoint,
@@ -36,7 +36,7 @@ import {
 } from 'tim-hooks';
 import { buildTimMcpEntry, installMcpEntryForHosts } from './install.js';
 import { cmdUserInit, cmdUserProfile, cmdUpdateSkills } from './user.js';
-import { tim_export, tim_import, repairImportFlags, repairProjectKind, exportToMarkdown, migrateTagsToTypes } from 'tim-migrate';
+import { tim_export, tim_import, repairImportFlags, repairProjectKind, exportToMarkdown, migrateTagsToTypes, migrateRetireStructuralTags } from 'tim-migrate';
 import { cmdSync } from './sync-cli.js';
 import { cmdSnapshot } from './snapshot.js';
 import { cmdRestore } from './restore.js';
@@ -143,10 +143,13 @@ const COMMAND_HELP: Record<string, string> = {
   'migrate-from-hmem':
     'Usage: tim migrate-from-hmem <path.hmem> [--deduplicate] [--no-deduplicate] [--dry-run]',
   'migrate-schema': 'Usage: tim migrate-schema',
-  migrate: 'Usage: tim migrate <tags-to-types|project-kind> [options]',
+  migrate: 'Usage: tim migrate <tags-to-types|project-kind|retire-structural-tags> [options]',
   'migrate tags-to-types':
     'Usage: tim migrate tags-to-types [--dry-run] [--sample-limit <count>]',
   'migrate project-kind': 'Usage: tim migrate project-kind [--dry-run]',
+  'migrate retire-structural-tags':
+    'Usage: tim migrate retire-structural-tags [--dry-run] [--sample-limit <count>]',
+  'reap-session-skeletons': 'Usage: tim reap-session-skeletons',
   snapshot:
     'Usage: tim snapshot [--db <path>] [--out <path>] [--prune-hours <hours>] [--no-symlink] [--quiet]',
   restore:
@@ -226,6 +229,7 @@ Commands:
   migrate-from-hmem        Run guided hmem migration
   migrate-schema           Apply pending database schema migrations
   migrate                  Run metadata migrations
+  reap-session-skeletons   Reap disposable session skeleton nodes (checkpoints)
   snapshot                 Snapshot the TIM database
   restore                  Restore the TIM database
   release-check            Run release verification
@@ -1027,6 +1031,48 @@ async function cmdMigrateProjectKind(args: string[]) {
   }
 }
 
+async function cmdMigrateRetireStructuralTags(args: string[]) {
+  const { flags } = parseArgs(args, {
+    valueOptions: valueOptionsFor('migrate', 'retire-structural-tags'),
+  });
+  const dryRun = flags['dry-run'] === 'true';
+  const sampleLimit = flags['sample-limit'] ? parseInt(flags['sample-limit'], 10) : 20;
+
+  const config = loadConfig();
+  const store = new TimStore(getDbPath(config));
+
+  try {
+    const report = await migrateRetireStructuralTags(store, { dryRun, sampleLimit });
+    console.log(JSON.stringify(report, null, 2));
+    if (dryRun) {
+      console.error(
+        `\n[tim] migrate retire-structural-tags — DRY RUN. ${report.migrated} entries would be cleaned.`,
+      );
+    } else {
+      console.error(
+        `\n[tim] migrate retire-structural-tags — ${report.migrated} cleaned, ${report.skipped} skipped, ${report.errors.length} errors.`,
+      );
+    }
+  } finally {
+    store.close();
+  }
+}
+
+async function cmdReapSessionSkeletons() {
+  const config = loadConfig();
+  const store = new TimStore(getDbPath(config));
+
+  try {
+    const report = await reapSessionSkeletons(store);
+    console.log(JSON.stringify(report, null, 2));
+    console.error(
+      `\n[tim] reap-session-skeletons — ${report.checkpointsReaped} checkpoint(s) reaped.`,
+    );
+  } finally {
+    store.close();
+  }
+}
+
 async function cmdRootEntries(args: string[]) {
   const { flags } = parseArgs(args, {
     valueOptions: valueOptionsFor('root-entries'),
@@ -1207,16 +1253,22 @@ async function main() {
         await cmdMigrateTagsToTypes(rest.slice(1));
       } else if (sub === 'project-kind') {
         await cmdMigrateProjectKind(rest.slice(1));
+      } else if (sub === 'retire-structural-tags') {
+        await cmdMigrateRetireStructuralTags(rest.slice(1));
       } else {
         console.error(
           `Usage: tim migrate <subcommand>\n` +
-            `  tags-to-types   Convert legacy #rule / #human tags to metadata.type [--dry-run] [--sample-limit N]\n` +
-            `  project-kind    Backfill metadata.kind=project on imported P-prefix roots [--dry-run]`,
+            `  tags-to-types           Convert legacy #rule / #human tags to metadata.type [--dry-run] [--sample-limit N]\n` +
+            `  project-kind            Backfill metadata.kind=project on imported P-prefix roots [--dry-run]\n` +
+            `  retire-structural-tags  Strip retired #exchange/#session/#exchanges/#checkpoint tags [--dry-run]`,
         );
         process.exit(1);
       }
       break;
     }
+    case 'reap-session-skeletons':
+      await cmdReapSessionSkeletons();
+      break;
     case 'snapshot':
       await cmdSnapshot(rest);
       break;
