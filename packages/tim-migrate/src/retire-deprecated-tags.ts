@@ -1,10 +1,13 @@
-// Retire structural session tags (#exchange, #session, #exchanges, #checkpoint) from
-// existing rows. Idempotent: re-running on a clean DB is a no-op.
+// Strip every DEPRECATED_TAG from existing rows — the retired structural tags
+// (#exchange, #session, #sessions, #exchanges, #checkpoint) plus the older status and
+// priority tags. The scope is the full set on purpose: store.update() strips all of them
+// on write anyway, so a narrower selector would only skip rows, never spare a tag.
+// Idempotent: re-running on a clean DB is a no-op.
 
 import { stripDeprecatedTags } from 'tim-core';
 import type { TimStore } from 'tim-store';
 
-export interface RetireStructuralTagsEntryResult {
+export interface RetireDeprecatedTagsEntryResult {
   id: string;
   title: string;
   oldTags: string[];
@@ -13,22 +16,22 @@ export interface RetireStructuralTagsEntryResult {
   changed: boolean;
 }
 
-export interface RetireStructuralTagsReport {
+export interface RetireDeprecatedTagsReport {
   scanned: number;
   migrated: number;
   skipped: number;
   errors: Array<{ id: string; error: string }>;
-  sampleChanges: RetireStructuralTagsEntryResult[];
+  sampleChanges: RetireDeprecatedTagsEntryResult[];
 }
 
 /**
- * Scan live entries and strip retired structural tags via store.update (staging/LWW).
- * Explicit opt-in: `tim migrate retire-structural-tags`.
+ * Scan live entries and strip every deprecated tag via store.update (staging/LWW).
+ * Explicit opt-in: `tim migrate retire-deprecated-tags`.
  */
-export async function migrateRetireStructuralTags(
+export async function migrateRetireDeprecatedTags(
   store: TimStore,
   options: { dryRun?: boolean; sampleLimit?: number } = {},
-): Promise<RetireStructuralTagsReport> {
+): Promise<RetireDeprecatedTagsReport> {
   const dryRun = options.dryRun === true;
   const sampleLimit = options.sampleLimit ?? 20;
   const db = store.getDb();
@@ -40,7 +43,7 @@ export async function migrateRetireStructuralTags(
       AND tombstoned_at IS NULL
   `).all() as Array<{ id: string; title: string; tags: string }>;
 
-  const report: RetireStructuralTagsReport = {
+  const report: RetireDeprecatedTagsReport = {
     scanned: rows.length,
     migrated: 0,
     skipped: 0,
@@ -63,7 +66,7 @@ export async function migrateRetireStructuralTags(
       continue;
     }
 
-    const result: RetireStructuralTagsEntryResult = {
+    const result: RetireDeprecatedTagsEntryResult = {
       id: row.id,
       title: row.title,
       oldTags: [...oldTags],

@@ -66,6 +66,7 @@ exports.DEPRECATED_STRUCTURAL_TAGS = new Set([
     '#exchange', 'exchange',
     '#session', 'session',
     '#exchanges', 'exchanges',
+    '#sessions', 'sessions',
     '#checkpoint', 'checkpoint',
 ]);
 exports.DEPRECATED_TAGS = new Set([

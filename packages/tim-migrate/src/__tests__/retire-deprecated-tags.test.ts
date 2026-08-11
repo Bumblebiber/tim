@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TimStore } from 'tim-store';
-import { migrateRetireStructuralTags } from '../retire-structural-tags.js';
+import { migrateRetireDeprecatedTags } from '../retire-deprecated-tags.js';
 
-describe('migrateRetireStructuralTags', () => {
+describe('migrateRetireDeprecatedTags', () => {
   let store: TimStore;
 
   beforeEach(() => {
@@ -22,16 +22,25 @@ describe('migrateRetireStructuralTags', () => {
   }
 
   it('strips retired structural tags and keeps #session-summary', async () => {
-    seedLegacyTags('legacy-1', ['#exchange', '#session-summary']);
-    const report = await migrateRetireStructuralTags(store, { dryRun: false });
+    seedLegacyTags('legacy-1', ['#exchange', '#sessions', '#session-summary']);
+    const report = await migrateRetireDeprecatedTags(store, { dryRun: false });
     expect(report.migrated).toBe(1);
     const read = await store.read('legacy-1');
     expect(read!.tags).toEqual(['#session-summary']);
   });
 
+  it('strips status and priority tags too — the scope is the full deprecated set', async () => {
+    seedLegacyTags('legacy-3', ['#todo', '#priority-high', '#architecture']);
+    const report = await migrateRetireDeprecatedTags(store, { dryRun: false });
+    expect(report.migrated).toBe(1);
+    expect(report.sampleChanges[0].removed).toEqual(['#todo', '#priority-high']);
+    const read = await store.read('legacy-3');
+    expect(read!.tags).toEqual(['#architecture']);
+  });
+
   it('dry-run does not modify rows', async () => {
     seedLegacyTags('legacy-2', ['#exchange', '#session-summary']);
-    const report = await migrateRetireStructuralTags(store, { dryRun: true });
+    const report = await migrateRetireDeprecatedTags(store, { dryRun: true });
     expect(report.migrated).toBe(1);
     const row = store.getDb().prepare('SELECT tags FROM entries WHERE id = ?').get('legacy-2') as {
       tags: string;

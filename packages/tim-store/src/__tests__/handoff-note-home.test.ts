@@ -165,13 +165,4 @@ describe('handoff note home (acceptance criteria)', () => {
     expect(clean).toEqual(['#session-summary', '#commit']);
     expect(removed).toEqual(['#exchange', '#checkpoint']);
   });
-
-  it('criterion 7: reapSessionSkeletons sweep delegates to reapCoveredCheckpoints', async () => {
-    await start('sess-sweep');
-    await sessions.checkpoint('sess-sweep', { summarize: async () => 'cp' });
-    await sessions.updateSessionSummary('sess-sweep', 'rollup');
-    const { reapSessionSkeletons } = await import('../session-skeleton-reaper.js');
-    const report = await reapSessionSkeletons(store);
-    expect(report.checkpointsReaped).toBe(1);
-  });
 });

@@ -54,8 +54,8 @@ node packages/tim-cli/dist/cli.js statusline
 | 17 | `tim import` | Import from `.hmem` file |
 | 18 | `tim migrate-from-hmem` | Guided hmem-to-TIM migration with dry-run, snapshot, import, audit handoff |
 | 19 | `tim migrate-schema` | Apply pending database schema migrations (explicit opt-in) |
-| 20 | `tim migrate` | Metadata migrations (`tags-to-types`, `project-kind`, `retire-structural-tags`) |
-| 21 | `tim reap-session-skeletons` | Reap disposable checkpoint nodes after summarizer rollup |
+| 20 | `tim migrate` | Metadata migrations (`tags-to-types`, `project-kind`, `retire-deprecated-tags`) |
+| 21 | `tim reap-checkpoints` | Reap checkpoints whose session already has a summarizer rollup |
 | 22 | `tim snapshot` | Snapshot live DB to `/tmp/tim-snapshots/` (SQLite backup) |
 | 23 | `tim restore` | Restore DB from a snapshot |
 | 24 | `tim release-check` | Verify release gates, beta smoke checks, and packaging safety |

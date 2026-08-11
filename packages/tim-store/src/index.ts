@@ -64,10 +64,6 @@ export {
   type ResumableSession,
 } from './session.js';
 export {
-  reapSessionSkeletons,
-  type SessionSkeletonReapReport,
-} from './session-skeleton-reaper.js';
-export {
   deriveCounters,
   findChildByKind,
   findManagedRoot,
