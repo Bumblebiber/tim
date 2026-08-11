@@ -88,11 +88,15 @@ and the consumer.
 7. The raw turns come from the same session as the note — never a note from
    session X beside raw turns from session Y. The reader already exists:
    `recentExchanges` in `session-briefing.ts:130-155`, merged with `17c6699`.
-8. The session-start briefing loses both past-work blocks. `── Previous session ──`
-   and `── Since the last summary ──` are removed from `briefingBlock`
-   (`marker.ts:503-528`); the project header, `── Open work ──` and the ACTION
-   line stay. `previousSessionSummary`, `recentExchanges` and the whole
-   `latestCheckpoint` helper leave `session-briefing.ts` with them.
+8. The **automatic** session start stops asking for past work. AMENDED
+   2026-08-11: gate, do not delete. `collectDirectiveBriefing` takes an
+   `includePastWork` flag; the session-start caller (`checkpoint.ts:325`) passes
+   `false`, so a fresh session sees the project header, `── Open work ──` and the
+   ACTION line and nothing else. The collectors (`previousSession`,
+   `recentExchanges`, `latestCheckpoint`) and both render blocks in
+   `briefingBlock` (`marker.ts:503-528`) **stay** — they are the machinery
+   `tim_preview_briefing` and criterion 12 call deliberately. Deleting them here
+   would mean rebuilding them for the on-demand path in the same release.
 9. `── Recent Sessions ──` in `tim_load_project`'s output (`project-output.ts:628`)
    is untouched. That is a deliberate tool call, not an automatism.
 10. A new skill `/tim-resume-topic <thema>` wraps `tim_resume_topic`. No CLI
@@ -101,7 +105,15 @@ and the consumer.
 11. Session root tags stay structural. Only the Summary root aggregates content
     tags — a session root carrying every tag of its children would match every tag
     search and explain nothing.
-12. Measurement, reported once after roughly a dozen sessions have run through the
+12. A skill `/tim-continue` renders exactly the briefing that used to arrive
+    automatically — previous session summary plus the not-yet-summarized raw
+    turns — on demand. It wraps the existing `tim_preview_briefing`, which
+    already builds that text and already creates no session and writes no
+    marker. No new MCP tool. It must **not** wrap `tim_session_resume`: that
+    tool aliases the running harness session onto the old session node
+    (`session.ts:1014`) and throws once the current session has logged an
+    exchange (`:996`), so it is a session merge, not a briefing.
+13. Measurement, reported once after roughly a dozen sessions have run through the
     new prompt: the reuse rate, i.e. the share of assigned tags that already
     existed in the project vocabulary. Below ~50% the vocabulary is not being
     used; above ~95% the summarizer has stopped minting genuinely new topics.
@@ -143,6 +155,9 @@ and the consumer.
   without a handoff is covered by its raw turns, which are quotation rather than
   summary.
 - No CLI command for topic resume (criterion 10).
+- `/tim-continue` gets no topic argument and no session picker. It is the
+  previous session, verbatim, on demand — `tim_resume_topic` is the path for
+  anything older.
 
 ## Verification
 
@@ -161,8 +176,11 @@ and the consumer.
   names that session and says no note exists, and the older session's note does
   **not** appear anywhere in it. Mutation check: adding a fallback to the older
   note must fail this test.
-- Briefing: the collector returns no previous-session summary and no raw
-  exchanges, and still returns open work.
+- Briefing: with `includePastWork: false` the collector returns no
+  previous-session summary and no raw exchanges, and still returns open work;
+  with the flag set it returns both, so `/tim-continue` and
+  `tim_preview_briefing` still render today's text. Mutation check: wiring the
+  session-start caller to `true` must fail the first half.
 - Full suite under the standing check:
   `mv tmp /tmp/tim-tmp-parked && env HOME=$(mktemp -d) npx vitest run`
 
@@ -186,10 +204,12 @@ and the consumer.
 
 ## Risk
 
-Criterion 8 removes the only automatic path to past work, so it must not land
-before criteria 4, 5 and 10 work — otherwise a fresh session starts blind.
+Criterion 8 removes the only *automatic* path to past work, so it must not land
+before criteria 4, 5, 10 and 12 work — otherwise a fresh session starts blind.
 DECIDED 2026-08-11: land them in one commit, **no config flag**. A flag that
-defaults to the old behaviour never gets flipped.
+defaults to the old behaviour never gets flipped. Criterion 8's `includePastWork`
+is not that flag: it is a call parameter with one hard-coded value per caller,
+not a setting anybody can turn back on.
 
 Commit `17c6699` (raw unsummarized turns in the briefing, on
 `feat/raw-tail-in-briefing`, unpushed, CI has never seen it) is merged **before**
