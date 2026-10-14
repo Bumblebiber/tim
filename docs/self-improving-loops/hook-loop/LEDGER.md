@@ -2,4 +2,4 @@
 
 | Date | Gate | Result | Note |
 |------|------|--------|------|
-| 2026-10-15 | Sandbox hooks-check (via installation sandbox) | — | Tied to installation-loop run on 2026-10-15 |
+| 2026-10-15 | Sandbox `hooks-check.py` + summarizer/git vitest gates | pass | H1–H4 via fresh/installer; H5/S1 via `check` |
