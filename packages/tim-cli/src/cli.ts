@@ -78,6 +78,7 @@ import { cmdMigrateFromHmem } from './migrate-from-hmem.js';
 import { cmdSetupAgent } from './setup-agent.js';
 import { cmdViewer } from './viewer.js';
 import { cmdOpenWork, cmdRead } from './open-work.js';
+import { cmdCodebaseRefresh } from './codebase-refresh.js';
 import { NEW_PROJECT_ALIASES, MissingOptionValueError, hasBooleanFlag, parseArgs, valueOptionsFor } from './args.js';
 import { agentSessionStartEnvelope, promptSubmitEnvelope, sessionStartEnvelope, readJsonStdin } from './claude-hook-io.js';
 import * as fs from 'fs';
@@ -232,6 +233,8 @@ const COMMAND_HELP: Record<string, string> = {
   'user init': 'Usage: tim user init',
   'user profile': 'Usage: tim user profile',
   'update-skills': 'Usage: tim update-skills',
+  'codebase-refresh':
+    'Usage: tim codebase-refresh [--dry-run] [--package P0063] [--graph <path>] [--out-dir <dir>]',
   '--version': 'Usage: tim --version',
 };
 
@@ -302,6 +305,7 @@ Commands:
   sessions reap            Reap empty session skeletons
   open-work                List every project's open tasks, bugs and ideas as JSON
   read <id>...             Print entries with body and children as JSON
+  codebase-refresh         Refresh Codebase dependency-map from graphify output
   --help                   Show this help`);
 }
 
@@ -1602,6 +1606,9 @@ async function main() {
     }
     case 'update-skills':
       await cmdUpdateSkills();
+      break;
+    case 'codebase-refresh':
+      await cmdCodebaseRefresh(rest);
       break;
     case '--version':
     case '-v':

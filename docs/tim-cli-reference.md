@@ -29,7 +29,7 @@ node packages/tim-cli/dist/cli.js statusline
 
 ---
 
-## Command Overview (46 commands)
+## Command Overview (47 commands)
 
 ### Top-Level Summary
 
@@ -80,7 +80,8 @@ node packages/tim-cli/dist/cli.js statusline
 | 43 | `tim sessions reap` | Reap empty session skeletons that never logged an exchange |
 | 44 | `tim open-work` | Print every project's open tasks, bugs and ideas as JSON |
 | 45 | `tim read` | Print entries with body and children as JSON |
-| 46 | `tim --help` | Show top-level help |
+| 46 | `tim codebase-refresh` | Refresh Codebase dependency-map from graphify output |
+| 47 | `tim --help` | Show top-level help |
 
 ---
 

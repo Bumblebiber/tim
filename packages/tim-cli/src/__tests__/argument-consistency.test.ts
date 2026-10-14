@@ -12,6 +12,7 @@ const HANDLERS = [
   'compact-error-log.ts',
   'new-project.ts',
   'viewer.ts',
+  'codebase-refresh.ts',
 ];
 
 describe('CLI argument parsing consistency', () => {

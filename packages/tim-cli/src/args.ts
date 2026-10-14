@@ -55,6 +55,7 @@ const COMMAND_VALUE_OPTIONS: Record<string, ReadonlySet<string>> = {
   viewer: new Set(['port', 'host', 'db']),
   sessions: new Set(['project', 'ids']),
   'sessions reap': new Set(['project', 'ids']),
+  'codebase-refresh': new Set(['package', 'graph', 'out-dir']),
 };
 
 export const NEW_PROJECT_ALIASES: Readonly<Record<string, string>> = {
