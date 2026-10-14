@@ -4,6 +4,10 @@ All notable changes to TIM are documented in this file.
 
 ## [Unreleased]
 
+### Testing
+
+- **Self-improving loop framework** — `docs/self-improving-loops/` documents five QA loops (installation, loading/briefing, sync, hooks, schema migration) with goals, ledgers, and `node scripts/self-improving-loops.mjs check` for fast vitest/briefing gates; Docker installation gate via `--with-docker`.
+
 ### Removed (2026-10-09)
 
 - **error_log compaction cron and the single-instance watchdog** — `tim-compact-error-log.sh` skipped every day (the resident `tim-mcp.service` counted as a writer), so `error_log` grew unbounded; `ErrorLogger.logError()` now trims at most two rows past the 10,000 cap per write (ring buffer, never a mass `DELETE`). `tim-single-instance-check.sh` failed every run (no user DBus under cron). TIM watchdog alerts (WAL, header, snapshot) now go to Telegram via `send-cron-telegram`; per-run logs are kept 14 days.
