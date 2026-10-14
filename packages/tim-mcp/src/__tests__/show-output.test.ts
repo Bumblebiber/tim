@@ -200,6 +200,29 @@ describe('tim_show', () => {
     expect(text).not.toContain('Not a bug');
   });
 
+  it('what:bugs includes metadata.bug without type or #bug tag', async () => {
+    const proj = await client.callTool('tim_create_project', { label: 'P0440b', content: 'Bug Proj', memoryOnly: true });
+    const project = JSON.parse(proj.result!.content[0].text);
+    const section = await client.callTool('tim_write', {
+      content: 'Misc',
+      parentId: project.id,
+      metadata: { kind: 'section' },
+      tags: ['#section'],
+    });
+    const sec = JSON.parse(section.result!.content[0].text);
+
+    await client.callTool('tim_write', {
+      content: 'Marker-only bug',
+      parentId: sec.id,
+      metadata: { bug: { status: 'open', severity: 'P2' } },
+      tags: ['#note'],
+    });
+
+    const resp = await client.callTool('tim_show', { what: 'bugs', root: 'P0440b' });
+    const text = resp.result!.content[0].text;
+    expect(text).toContain('Marker-only bug');
+  });
+
   it('what:errors unions type=error and #error tag deduped', async () => {
     const proj = await client.callTool('tim_create_project', { label: 'P0441', content: 'Error Proj', memoryOnly: true });
     const project = JSON.parse(proj.result!.content[0].text);
