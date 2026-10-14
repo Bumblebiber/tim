@@ -68,6 +68,7 @@ const HELP_CASES: HelpCase[] = [
   { args: ['user', 'init'], usage: 'Usage: tim user init' },
   { args: ['user', 'profile'], usage: 'Usage: tim user profile' },
   { args: ['update-skills'], usage: 'Usage: tim update-skills' },
+  { args: ['codebase-refresh'], usage: 'Usage: tim codebase-refresh' },
   { args: ['sessions'], usage: 'Usage: tim sessions reap' },
   { args: ['sessions', 'reap'], usage: 'Usage: tim sessions reap' },
   { args: ['--version'], usage: 'Usage: tim --version' },
