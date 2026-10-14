@@ -18,6 +18,10 @@ describe('runProjectSummary session sourcing', () => {
     store = new TimStore(dbPath);
     await store.createProject('P0099', { content: 'Huge project' });
     const project = await store.requireProject('P0099');
+    await store.write('Open tracker task', {
+      parentId: project.id,
+      metadata: { type: 'task', task: { status: 'todo', priority: 'medium' } },
+    });
 
     for (let i = 0; i < 250; i++) {
       await store.write(`Noise ${i}`, {
@@ -67,8 +71,9 @@ describe('runProjectSummary session sourcing', () => {
     expect(merged).toMatch(/_Covers 4 sessions, .+ – .+_/);
     expect(merged).toContain('- rolled up project news');
     expect(generateSummary.generateProjectSummary).toHaveBeenCalled();
-    const arg = vi.mocked(generateSummary.generateProjectSummary).mock.calls[0][0];
-    expect(arg.length).toBeGreaterThanOrEqual(4);
+    const call = vi.mocked(generateSummary.generateProjectSummary).mock.calls[0];
+    expect(call[0].length).toBeGreaterThanOrEqual(4);
+    expect(call[3]).toEqual(['Open tracker task']);
   });
 
   it('feeds neither checkpoint heuristics nor bare titles into the project summary', async () => {

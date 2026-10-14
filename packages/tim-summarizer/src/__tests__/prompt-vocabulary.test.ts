@@ -150,6 +150,15 @@ describe('English summary instruction (C10)', () => {
   });
 });
 
+describe('project summary prompt', () => {
+  it('discourages repeating solved work and lists open tasks when given', () => {
+    const prompt = buildProjectSummaryPrompt(['- shipped feature X'], 800, ['Fix regression Y']);
+    expect(prompt).toMatch(/done, cancelled or shipped/i);
+    expect(prompt).toContain('Fix regression Y');
+    expect(prompt).toContain('ground truth');
+  });
+});
+
 describe('caveman style (Benni 2026-10-04)', () => {
   it('every summary prompt asks for it, next to the format part rather than the top', () => {
     const batch = buildPrompt(base);

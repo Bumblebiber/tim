@@ -576,15 +576,26 @@ export async function generateSessionRollup(
 /** Hard ceiling for a project summary; the briefing renders it every load. */
 export const PROJECT_SUMMARY_MAX_CHARS = 800;
 
-export function buildProjectSummaryPrompt(sessionSummaries: string[], maxChars: number): string {
+export function buildProjectSummaryPrompt(
+  sessionSummaries: string[],
+  maxChars: number,
+  openWorkTitles: string[] = [],
+): string {
   const joined = sessionSummaries.join('\n\n---\n\n');
+  const openBlock = openWorkTitles.length
+    ? `Open tasks from the tracker (ground truth — do not repeat solved themes instead):\n` +
+      `${openWorkTitles.map(t => `- ${t}`).join('\n')}\n\n`
+    : '';
   return (
     `${ENGLISH_SUMMARY_INSTRUCTION} ` +
     `You are summarizing a project's progress across multiple sessions.\n` +
     `Below are summaries of the last N sessions. Produce a project-level summary ` +
-    `of the project's CURRENT STATE: what works, what is in progress, what blocks.\n\n` +
+    `of the project's CURRENT STATE: what works, what is in progress, what blocks.\n` +
+    `Do not list work that is done, cancelled or shipped in older sessions — only ` +
+    `open items, blockers and in-progress themes.\n\n` +
     `Format: 2-3 terse bullet points, ${maxChars} characters total at most. ` +
     `Output ONLY the bullets, no preamble. ${CAVEMAN_STYLE}\n\n` +
+    openBlock +
     `Session summaries:\n${joined}`
   );
 }
@@ -625,6 +636,7 @@ export async function generateProjectSummary(
   sessionSummaries: string[],
   onError?: ErrorLogFn,
   maxChars = PROJECT_SUMMARY_MAX_CHARS,
+  openWorkTitles: string[] = [],
 ): Promise<string | null> {
   const config = loadConfig();
   const chain = config.summarizer?.chain;
@@ -648,7 +660,7 @@ export async function generateProjectSummary(
     return null;
   };
 
-  let summary = await runChain(buildProjectSummaryPrompt(sessionSummaries, maxChars));
+  let summary = await runChain(buildProjectSummaryPrompt(sessionSummaries, maxChars, openWorkTitles));
   if (!summary) return null;
   if (summary.length > maxChars) {
     summary = (await runChain(buildCompressPrompt(summary, maxChars))) ?? summary;

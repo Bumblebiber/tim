@@ -130,11 +130,18 @@ export async function runProjectSummary(label: string): Promise<boolean> {
 
     const dates = picked.map(p => p.date).sort();
     const coverage = `_Covers ${picked.length} sessions, ${dates[0]} – ${dates[dates.length - 1]}_`;
+    const closedTask = new Set(['done', 'cancelled', 'closed', 'wontfix']);
+    const openWorkTitles = (await store.getTasks())
+      .filter(t => t.project_label === label && !(t.status && closedTask.has(t.status)))
+      .slice(0, 12)
+      .map(t => t.title.trim())
+      .filter(Boolean);
     // The coverage line counts toward the limit the briefing renders.
     const generated = await generateProjectSummary(
       picked.flatMap(p => p.summaries),
       undefined,
       PROJECT_SUMMARY_MAX_CHARS - coverage.length - 1,
+      openWorkTitles,
     );
     if (!generated) return false;
 

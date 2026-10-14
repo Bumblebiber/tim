@@ -1572,9 +1572,19 @@ async function fetchByWhat(
       const b = await store.getByTag('#error');
       return scopeEntries(store, dedupeById([...a, ...b]), labels);
     }
+    // Same recognition as store.getBugs / countProjectOpenBugs — metadata.bug
+    // without metadata.type or #bug still counts (hmem import, legacy writes).
+    case 'bugs': {
+      const rows = await store.getBugs();
+      const entries: Entry[] = [];
+      for (const row of rows) {
+        const e = await store.read(row.id);
+        if (e) entries.push(e);
+      }
+      return scopeEntries(store, entries, labels);
+    }
     // metadata.type is the marker since the schema change (and what the README
     // tells agents to write); the tag is the older one some entries still carry.
-    case 'bugs':
     case 'decisions':
     case 'learnings': {
       const type = lc.slice(0, -1);
