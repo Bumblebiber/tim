@@ -161,6 +161,10 @@ export class TenantRegistry {
     return { tenantCount: tenants.length, totalEntries, totalBytes };
   }
 
+  tenantIds(): string[] {
+    return (this.db.prepare('SELECT id FROM tenants').all() as { id: string }[]).map(t => t.id);
+  }
+
   close(): void {
     this.db.close();
   }
