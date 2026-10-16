@@ -131,6 +131,71 @@ function handoffAgeLabel(isoDate: string): string {
  * condensed rollup are the handoff ("next: …") — cutting from the front would drop
  * exactly what the new session needs.
  */
+/** Batch summaries' Open/Next/WIP bullets — superseded when a later handoff note exists. */
+const MID_SESSION_PLANNING_LINE =
+  /^(\s*[-*•]\s*)?(\*\*)?(Open|Next|WIP)( step)?:?(\*\*)?\s/i;
+
+/**
+ * Drop mid-session planning lines from batch-assembled summary text. Handoff notes
+ * carry the authoritative done/wip/next; batch bodies written earlier often disagree.
+ */
+export function stripMidSessionPlanningLines(body: string): string {
+  const lines = body.split('\n');
+  const kept: string[] = [];
+  let dropped = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (t && MID_SESSION_PLANNING_LINE.test(t)) {
+      dropped = true;
+      continue;
+    }
+    kept.push(line);
+  }
+  const joined = kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (!dropped) return joined;
+  const marker = '(Mid-session Open/Next/WIP omitted — superseded by handoff below.)';
+  return joined ? `${marker}\n\n${joined}` : marker;
+}
+
+/** When the handoff note was written (checkpoint time, else summary-root update). */
+async function handoffNoteWrittenAt(
+  store: TimStore,
+  summaryNode: Entry,
+): Promise<string | null> {
+  const { note } = await latestCheckpoint(store, summaryNode).catch(() => ({ note: '' }));
+  if (!note.trim()) return null;
+  const children = await store.getChildren(summaryNode.id);
+  const flagged = children
+    .filter(c => c.metadata.kind === 'checkpoint' && c.metadata.handoff === true)
+    .map(c => c.createdAt)
+    .sort()
+    .pop();
+  if (flagged) return flagged;
+  const rootNote = typeof summaryNode.metadata.handoff_note === 'string'
+    ? summaryNode.metadata.handoff_note.trim()
+    : '';
+  if (rootNote) return summaryNode.updatedAt || summaryNode.createdAt;
+  let newest = '';
+  for (const child of children) {
+    const childNote = typeof child.metadata.handoff_note === 'string'
+      ? child.metadata.handoff_note.trim()
+      : '';
+    if (!childNote) continue;
+    const at = child.updatedAt || child.createdAt;
+    if (at.localeCompare(newest) >= 0) newest = at;
+  }
+  return newest || null;
+}
+
+function newestBatchSummaryAt(batches: Entry[]): string {
+  let newest = '';
+  for (const b of batches) {
+    const at = b.updatedAt || b.createdAt;
+    if (at.localeCompare(newest) >= 0) newest = at;
+  }
+  return newest;
+}
+
 export function clampSummary(text: string, maxChars: number): string {
   const lines = text.split('\n').map(l => l.trimEnd()).filter(l => l.trim().length > 0);
   if (lines.length === 0) return '';
@@ -267,14 +332,25 @@ async function sessionBriefingContent(
     ? summaryNode.metadata.summary
     : '';
   let body = (stored || text || summaryNode?.content || '').trim();
+  let batchSummaries: Entry[] = [];
   if (!body && summaryNode) {
-    const batchSummaries = await store.getChildByKind(summaryNode.id, KIND_BATCH).catch(() => []);
+    batchSummaries = await store.getChildByKind(summaryNode.id, KIND_BATCH).catch(() => []);
     body = batchSummaries
       .slice()
       .sort((a, b) => (Number(a.metadata.batch_index) || 0) - (Number(b.metadata.batch_index) || 0))
       .map(b => (b.content ?? '').trim())
       .filter(Boolean)
       .join('\n\n');
+  } else if (summaryNode) {
+    batchSummaries = await store.getChildByKind(summaryNode.id, KIND_BATCH).catch(() => []);
+  }
+
+  if (body && note && summaryNode && batchSummaries.length > 0) {
+    const handoffAt = await handoffNoteWrittenAt(store, summaryNode);
+    const batchAt = newestBatchSummaryAt(batchSummaries);
+    if (handoffAt && batchAt && handoffAt.localeCompare(batchAt) > 0) {
+      body = stripMidSessionPlanningLines(body);
+    }
   }
 
   const clampedNote = note
