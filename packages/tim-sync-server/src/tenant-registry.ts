@@ -161,6 +161,16 @@ export class TenantRegistry {
     return { tenantCount: tenants.length, totalEntries, totalBytes };
   }
 
+  /** Physical bytes (db + WAL) per tenant, for disk monitoring. */
+  tenantDiskBytes(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const t of this.db.prepare('SELECT id FROM tenants').all() as { id: string }[]) {
+      const p = this.tenantDbPath(t.id);
+      out[t.id] = [p, `${p}-wal`].reduce((n, f) => n + (fs.existsSync(f) ? fs.statSync(f).size : 0), 0);
+    }
+    return out;
+  }
+
   close(): void {
     this.db.close();
   }

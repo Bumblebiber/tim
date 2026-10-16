@@ -249,3 +249,40 @@ describe('tim-sync-server HTTP', () => {
     expect(body.entry_count).toBe(0);
   });
 });
+
+describe('tim-sync-server backup and restore', () => {
+  let tmp: string;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tim-sync-bak-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('backs up a live data dir and restores it into a fresh one (restore drill)', async () => {
+    const { backupDataDir, restoreBackup } = await import('../backup.js');
+    const live = new TenantRegistry(path.join(tmp, 'live'));
+    const t = live.register('free');
+    createFile(live, t.id, 'file-1', 'salt-1');
+
+    await backupDataDir(path.join(tmp, 'live'), path.join(tmp, 'bak'));
+    expect(() => restoreBackup(path.join(tmp, 'bak'), path.join(tmp, 'live'))).toThrow(/not empty/);
+    restoreBackup(path.join(tmp, 'bak'), path.join(tmp, 'restored'));
+    live.close();
+
+    const restored = new TenantRegistry(path.join(tmp, 'restored'));
+    expect(restored.resolveToken(t.token)?.id).toBe(t.id);
+    expect(restored.getTenantDb(t.id).prepare('SELECT salt FROM files WHERE id=?').get('file-1')).toEqual({ salt: 'salt-1' });
+    restored.close();
+  });
+
+  it('admin /health reports request metrics and per-tenant disk bytes', async () => {
+    const h = await startHostedSyncServer({ port: 0, dataDir: tmp, adminToken: 'adm' });
+    const base = `http://127.0.0.1:${h.port}`;
+    const { tenant_id } = await (await fetch(`${base}/register`, { method: 'POST', body: '{}' })).json() as { tenant_id: string };
+    await fetch(`${base}/sync/status`); // 401
+    const body = await (await fetch(`${base}/health`, { headers: { Authorization: 'Bearer adm' } })).json() as Record<string, any>;
+    expect(body.requests).toBeGreaterThanOrEqual(2);
+    expect(body.errors_4xx).toBeGreaterThanOrEqual(1);
+    expect(body.errors_5xx).toBe(0);
+    expect(typeof body.latency_p95_ms).toBe('number');
+    expect(body.tenant_disk_bytes[tenant_id]).toBeGreaterThan(0);
+    await h.close();
+  });
+});

@@ -5,3 +5,4 @@ export type { RegistryStats } from './tenant-registry.js';
 export { createFile, listFiles, pushBlobs, pullBlobs } from './storage.js';
 export { createHostedSyncServer, startHostedSyncServer } from './server.js';
 export type { HostedServerOptions, HostedServerHandle } from './server.js';
+export { backupDataDir, restoreBackup } from './backup.js';

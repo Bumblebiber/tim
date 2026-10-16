@@ -109,6 +109,30 @@ function isAdminToken(provided: string, expected?: string): boolean {
   return timingSafeEqual(digest(provided), digest(expected));
 }
 
+const LATENCY_WINDOW = 1000;
+
+/** Request counters since start plus p95 latency over the last LATENCY_WINDOW requests. */
+export class RequestMetrics {
+  requests = 0;
+  errors5xx = 0;
+  errors4xx = 0;
+  private latencies: number[] = [];
+
+  record(status: number, ms: number): void {
+    this.requests++;
+    if (status >= 500) this.errors5xx++;
+    else if (status >= 400) this.errors4xx++;
+    this.latencies.push(ms);
+    if (this.latencies.length > LATENCY_WINDOW) this.latencies.shift();
+  }
+
+  p95Ms(): number {
+    if (!this.latencies.length) return 0;
+    const sorted = [...this.latencies].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!;
+  }
+}
+
 export function createHostedSyncServer(
   options: HostedServerOptions,
   rateLimiter: RegisterRateLimiter = new RegisterRateLimiter(),
@@ -118,7 +142,11 @@ export function createHostedSyncServer(
   const adminToken = options.adminToken ?? process.env.TIM_SYNC_ADMIN_TOKEN;
   const trustProxy = options.trustProxy ?? process.env.TIM_SYNC_TRUST_PROXY === '1';
 
+  const metrics = new RequestMetrics();
+
   const server = http.createServer(async (req, res) => {
+    const t0 = Date.now();
+    res.on('finish', () => metrics.record(res.statusCode, Date.now() - t0));
     const url = new URL(req.url ?? '/', 'http://localhost');
     const authHeader = req.headers.authorization ?? '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
@@ -133,6 +161,11 @@ export function createHostedSyncServer(
           tenant_count: stats.tenantCount,
           total_entries: stats.totalEntries,
           total_bytes: stats.totalBytes,
+          requests: metrics.requests,
+          errors_5xx: metrics.errors5xx,
+          errors_4xx: metrics.errors4xx,
+          latency_p95_ms: metrics.p95Ms(),
+          tenant_disk_bytes: registry.tenantDiskBytes(),
         });
       } else {
         sendJson(res, 200, { ok: true, uptime_sec: uptimeSec });
