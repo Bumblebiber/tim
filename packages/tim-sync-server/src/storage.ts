@@ -160,3 +160,20 @@ export function acknowledgeCursor(
     }).immediate();
   } finally { db.close(); }
 }
+
+export const COMPACT_MIN_AGE_DAYS = 30;
+
+/**
+ * Delete blob versions covered by a newer version of the same client_proposed_id (not older by
+ * updated_at, so the LWW winner survives) and received over `minAgeDays` ago. Pull cursors are blob
+ * ids; a gap is harmless because the covering version has a higher id. Legacy rows without received_at are kept.
+ */
+export function compactBlobs(registry: TenantRegistry, tenantId: string, minAgeDays = COMPACT_MIN_AGE_DAYS, now = new Date()): number {
+  const cutoff = new Date(now.getTime() - minAgeDays * 86_400_000).toISOString();
+  const db = registry.getTenantDb(tenantId);
+  try {
+    return db.prepare(`DELETE FROM blobs WHERE received_at IS NOT NULL AND received_at < ? AND EXISTS (
+      SELECT 1 FROM blobs n WHERE n.file_id=blobs.file_id AND n.client_proposed_id=blobs.client_proposed_id
+        AND n.id>blobs.id AND n.updated_at>=blobs.updated_at)`).run(cutoff).changes;
+  } finally { db.close(); }
+}

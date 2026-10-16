@@ -2,7 +2,7 @@ import { SYNC_CAPABILITIES, validProtocolVersion, validProtocolBlob } from 'tim-
 import http from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { TenantRegistry } from './tenant-registry.js';
-import { createFile, listFiles, pushBlobs, pullBlobs, acknowledgeCursor } from './storage.js';
+import { createFile, listFiles, pushBlobs, pullBlobs, acknowledgeCursor, compactBlobs } from './storage.js';
 import type { TenantTier } from './quotas.js';
 
 export const MAX_BODY_BYTES = 10 * 1024 * 1024;
@@ -327,6 +327,14 @@ export function createHostedSyncServer(
 
 export function startHostedSyncServer(options: HostedServerOptions): Promise<HostedServerHandle> {
   const handle = createHostedSyncServer(options);
+  const compact = setInterval(() => {
+    for (const id of handle.registry.tenantIds()) {
+      try { compactBlobs(handle.registry, id); } catch (err) { console.error(`compaction failed for ${id}`, err); }
+    }
+  }, 6 * 3_600_000);
+  compact.unref();
+  const close = handle.close;
+  handle.close = () => { clearInterval(compact); return close(); };
   return new Promise((resolve, reject) => {
     handle.server.listen(options.port ?? 3100, options.host ?? '127.0.0.1', () => {
       const addr = handle.server.address();
