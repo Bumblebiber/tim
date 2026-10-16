@@ -100,7 +100,7 @@ export {
   type MarkerDiscoveryPolicy,
 } from './marker.js';
 
-export { collectDirectiveBriefing, clampSummary, recentExchanges, formatOpenWorkLines, buildNowBlock, countProjectOpenTasks, countProjectOpenBugs } from './session-briefing.js';
+export { collectDirectiveBriefing, clampSummary, stripMidSessionPlanningLines, recentExchanges, formatOpenWorkLines, buildNowBlock, countProjectOpenTasks, countProjectOpenBugs } from './session-briefing.js';
 export { isSubstantiveSession, SUBSTANTIVE_MIN_EXCHANGES } from 'tim-store';
 
 export {
