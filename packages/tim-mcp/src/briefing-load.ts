@@ -1,4 +1,4 @@
-import { resolveEntrySearchStatus, type Entry } from 'tim-core';
+import { resolveEntrySearchStatus, taskPriorityRank, type Entry } from 'tim-core';
 import type { LoadProjectResult, TimStore } from 'tim-store';
 import { LOG_SECTION_NAMES } from './task-aware-selection.js';
 
@@ -28,7 +28,7 @@ function compareSectionOrder(a: Entry, b: Entry): number {
   return a.createdAt.localeCompare(b.createdAt);
 }
 
-function compareBriefingEntries(a: Entry, b: Entry): number {
+export function compareBriefingEntries(a: Entry, b: Entry): number {
   const importance = (entry: Entry): number => {
     if (entry.metadata.kind === 'session-summary-root') return -10;
     if (entry.metadata.kind === 'exchanges-root') return 10;
@@ -36,8 +36,8 @@ function compareBriefingEntries(a: Entry, b: Entry): number {
     if (status && ['done', 'cancelled', 'closed', 'fixed', 'resolved'].includes(status)) return 5;
     const task = entry.metadata.task;
     if (task && typeof task === 'object') {
-      const priority = (task as Record<string, unknown>).priority;
-      return priority === 'high' ? -3 : priority === 'medium' ? -2 : -1;
+      // rank 0–3 (critical/P0 … low/P3), 4 = unknown → -5 … -1, still ahead of non-tasks (0)
+      return taskPriorityRank((task as Record<string, unknown>).priority) - 5;
     }
     return 0;
   };
